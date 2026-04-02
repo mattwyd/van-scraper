@@ -20,7 +20,7 @@ ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "pete
 
 # Matched against uppercase title
 WANTED_VEHICLES = {
-    "ECONOLINE", "TRANSIT CARGO", "TRANSIT CONNECT", "TRANSIT VAN",
+    "TRANSIT CARGO", "TRANSIT CONNECT", "TRANSIT VAN",
     "EXPRESS CARGO", "SAVANA CARGO", "ASTRO CARGO",
     "SPRINTER",
     "NV CARGO", "NV200",
@@ -32,7 +32,7 @@ WANTED_VEHICLES = {
 
 # Kijiji search keywords → one search page each
 KIJIJI_SEARCHES = [
-    "econoline", "transit-cargo", "transit-connect",
+    "transit-cargo", "transit-connect",
     "sprinter", "promaster", "nv-cargo",
     "caravan", "ranger",
 ]
