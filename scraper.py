@@ -85,7 +85,7 @@ def scrape() -> list[dict]:
             print(f"  Skip ({km:,}km > {MAX_KM:,}km): {title}")
             continue
 
-        print(f"  Match: {title} | ${price:,} | {km:,} km | {link}")
+        print(f"  Match: {title} | ${price:,} | {km:,} km | {link}" if price and km else f"  Match: {title} | price={price} | km={km} | {link}")
         results.append({
             "title": title,
             "price": f"${price:,}" if price is not None else "N/A",
