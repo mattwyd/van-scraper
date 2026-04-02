@@ -1,20 +1,30 @@
 #!/usr/bin/env python3
 """
-Kenny U-Pull scraper.
-Finds cargo vans under $7,500 and under 200,000 km and posts to Discord.
-Set TEST_MODE=true to find any car with no filters (for debugging).
+Kenny U-Pull cargo van scraper.
+Scrapes kennyautos.com (the iframe behind kennyupull.com/cars-for-sale/)
+and posts matching cargo vans to Discord.
+
+Set TEST_MODE=true to disable filters and return the first 3 listings found.
 """
-import asyncio
 import os
 import re
 import httpx
-from playwright.async_api import async_playwright
+from bs4 import BeautifulSoup
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK_URL"]
 TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
 MAX_PRICE = 99_999 if TEST_MODE else 7_500
 MAX_KM = 999_999 if TEST_MODE else 200_000
-URL = "https://kennyupull.com/cars-for-sale/"
+LISTING_URL = "https://kennyautos.com/iframe-index.asp?lg=EN"
+BASE_URL = "https://kennyautos.com"
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Referer": "https://kennyupull.com/",
+}
 
 
 def extract_number(text: str) -> int | None:
@@ -23,123 +33,69 @@ def extract_number(text: str) -> int | None:
     return int(match.group()) if match else None
 
 
-async def scrape() -> list[dict]:
+def scrape() -> list[dict]:
+    print(f"Fetching {LISTING_URL} ...")
+    r = httpx.get(LISTING_URL, headers=HEADERS, timeout=30, follow_redirects=True)
+    r.raise_for_status()
+    print(f"Got {len(r.text):,} chars")
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    items = soup.find_all("li")
+    print(f"Found {len(items)} <li> elements")
+
     results = []
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
-        page = await browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
+    for li in items:
+        h5 = li.find("h5")
+        if not h5:
+            continue
 
-        print(f"Loading {URL} ...")
-        await page.goto(URL, wait_until="networkidle", timeout=60_000)
+        title = h5.get_text(strip=True)
+        title_upper = title.upper()
 
-        # Extra wait for lazy-loaded content
-        await page.wait_for_timeout(3000)
+        # In test mode skip type filter; otherwise only cargo/van
+        if not TEST_MODE:
+            if "CARGO" not in title_upper and "VAN" not in title_upper:
+                continue
 
-        # Dump HTML for debugging
-        html = await page.content()
-        with open("page_dump.html", "w") as f:
-            f.write(html)
-        print(f"Page HTML dumped ({len(html):,} chars)")
-
-        # Try every plausible selector, widest to narrowest
-        card_selectors = [
-            ".car-card",
-            ".vehicle-card",
-            ".listing-card",
-            "[class*='car-item']",
-            "[class*='vehicle-item']",
-            "[class*='listing-item']",
-            "[class*='inventory']",
-            "[class*='product']",
-            "article.type-car",
-            ".cars-list article",
-            ".post-type-car",
-            ".wp-block-post",
-            ".entry",
-            "article",
-        ]
-
-        cards = []
-        used_selector = ""
-        for selector in card_selectors:
-            found = await page.query_selector_all(selector)
-            if found:
-                print(f"Selector '{selector}' → {len(found)} elements")
-                cards = found
-                used_selector = selector
+        # --- Price: <strong> containing $ ---
+        price: int | None = None
+        for strong in li.find_all("strong"):
+            text = strong.get_text(strip=True)
+            if "$" in text:
+                price = extract_number(text)
                 break
 
-        if not cards:
-            print("No cards found with any selector — check page_dump.html artifact")
-            await browser.close()
-            return []
+        # --- KM: <strong> containing "km" ---
+        km: int | None = None
+        for strong in li.find_all("strong"):
+            text = strong.get_text(strip=True)
+            if "km" in text.lower():
+                km = extract_number(text)
+                break
 
-        print(f"Using '{used_selector}', found {len(cards)} cards")
+        # --- Link ---
+        a = li.find("a", href=True)
+        link = (BASE_URL + a["href"]) if a and a["href"].startswith("/") else (a["href"] if a else "")
 
-        for card in cards:
-            text = await card.inner_text()
-            text_lower = text.lower()
+        # --- Filters ---
+        if price is not None and price > MAX_PRICE:
+            print(f"  Skip (${price:,} > ${MAX_PRICE:,}): {title}")
+            continue
+        if km is not None and km > MAX_KM:
+            print(f"  Skip ({km:,}km > {MAX_KM:,}km): {title}")
+            continue
 
-            # In test mode find any car; in normal mode only cargo vans
-            if not TEST_MODE:
-                if "cargo" not in text_lower and "van" not in text_lower:
-                    continue
+        print(f"  Match: {title} | ${price:,} | {km:,} km | {link}")
+        results.append({
+            "title": title,
+            "price": f"${price:,}" if price is not None else "N/A",
+            "km": f"{km:,} km" if km is not None else "N/A",
+            "link": link,
+        })
 
-            # --- Title ---
-            title = ""
-            for sel in ["h2", "h3", "h4", ".title", "[class*='title']", "[class*='name']"]:
-                el = await card.query_selector(sel)
-                if el:
-                    title = (await el.inner_text()).strip()
-                    break
-            if not title:
-                title = text.split("\n")[0].strip()
+        if TEST_MODE and len(results) >= 3:
+            break
 
-            # --- Price ---
-            price: int | None = None
-            price_el = await card.query_selector("[class*='price']")
-            price_text = (await price_el.inner_text()) if price_el else ""
-            if not price_text:
-                m = re.search(r"\$\s*[\d,]+", text)
-                price_text = m.group() if m else ""
-            if price_text:
-                price = extract_number(price_text)
-
-            # --- KM ---
-            km: int | None = None
-            m = re.search(r"([\d,]+)\s*km", text, re.IGNORECASE)
-            if m:
-                km = extract_number(m.group(1))
-
-            # --- Link ---
-            link = ""
-            link_el = await card.query_selector("a[href]")
-            if link_el:
-                link = await link_el.get_attribute("href") or ""
-
-            # --- Filters ---
-            if price is not None and price > MAX_PRICE:
-                continue
-            if km is not None and km > MAX_KM:
-                continue
-
-            print(f"  Match: {title} | price={price} | km={km} | {link}")
-            results.append({
-                "title": title,
-                "price": f"${price:,}" if price is not None else "N/A",
-                "km": f"{km:,} km" if km is not None else "N/A",
-                "link": link,
-            })
-
-            if TEST_MODE and len(results) >= 3:
-                break  # just grab first 3 in test mode
-
-        await browser.close()
     return results
 
 
@@ -147,10 +103,7 @@ def send_discord(listings: list[dict]) -> None:
     if not listings:
         payload = {
             "username": "Kenny U-Pull Bot",
-            "content": (
-                "No matching listings found right now. "
-                + ("(TEST MODE — scraper couldn't find any cards, check the artifact)" if TEST_MODE else "Will check again later.")
-            ),
+            "content": "No cargo vans found under $7,500 and 200,000 km right now. Will check again later.",
         }
     else:
         embeds = []
@@ -164,24 +117,30 @@ def send_discord(listings: list[dict]) -> None:
                     {"name": "KM", "value": car["km"], "inline": True},
                 ],
             })
-        label = "TEST — first 3 listings found:" if TEST_MODE else f"Found **{len(listings)}** cargo van(s) under $7,500 and 200,000 km at Kenny U-Pull:"
+        label = (
+            "TEST — first 3 real listings from Kenny U-Pull:"
+            if TEST_MODE
+            else f"Found **{len(listings)}** cargo van(s) under $7,500 and 200,000 km at Kenny U-Pull:"
+        )
         payload = {
             "username": "Kenny U-Pull Bot",
             "content": label,
             "embeds": embeds,
         }
+        if len(listings) > 10:
+            payload["content"] += f"\n_(showing first 10 of {len(listings)})_"
 
     r = httpx.post(DISCORD_WEBHOOK, json=payload, timeout=15)
     r.raise_for_status()
     print("Discord notification sent.")
 
 
-async def main() -> None:
+def main() -> None:
     print(f"TEST_MODE={TEST_MODE}, MAX_PRICE={MAX_PRICE}, MAX_KM={MAX_KM}")
-    listings = await scrape()
+    listings = scrape()
     print(f"\nTotal matching listings: {len(listings)}")
     send_discord(listings)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

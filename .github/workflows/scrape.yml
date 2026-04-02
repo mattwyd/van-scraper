@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       test_mode:
-        description: 'Send a fake listing to preview Discord output'
+        description: 'Send first 3 real listings to preview Discord output'
         required: false
         default: 'false'
 
 jobs:
   scrape:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -23,20 +23,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          playwright install chromium --with-deps
+        run: pip install -r requirements.txt
 
       - name: Run scraper
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TEST_MODE: ${{ github.event.inputs.test_mode }}
         run: python scraper.py
-
-      - name: Upload page dump
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: page-dump
-          path: page_dump.html
-          if-no-files-found: ignore
