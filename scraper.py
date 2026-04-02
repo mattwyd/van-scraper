@@ -17,6 +17,19 @@ MAX_PRICE = 99_999 if TEST_MODE else 7_500
 MAX_KM = 999_999 if TEST_MODE else 200_000
 LISTING_URL = "https://kennyautos.com/iframe-index.asp?lg=EN"
 ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "peterborough"}
+
+# Keywords matched against the full title (uppercase)
+WANTED_VEHICLES = {
+    # Cargo vans
+    "ECONOLINE", "TRANSIT CARGO", "TRANSIT CONNECT", "TRANSIT VAN",
+    "EXPRESS CARGO", "SAVANA CARGO", "ASTRO CARGO",
+    "SPRINTER", "SPRINTER CARGO",
+    "NV CARGO", "NV200",
+    "RAM VAN", "PROMASTER", "PROMASTER CITY",
+    "METRIS",
+    # Trucks
+    "RANGER",
+}
 BASE_URL = "https://kennyautos.com"
 
 HEADERS = {
@@ -53,9 +66,9 @@ def scrape() -> list[dict]:
         title = h5.get_text(strip=True)
         title_upper = title.upper()
 
-        # In test mode skip type filter; otherwise only cargo/van
+        # In test mode skip type filter; otherwise match against known models
         if not TEST_MODE:
-            if "CARGO" not in title_upper and "VAN" not in title_upper:
+            if not any(model in title_upper for model in WANTED_VEHICLES):
                 continue
 
         # --- Price: <h5 class="recent_item_price"><b>$4,722</b> ---
