@@ -20,21 +20,14 @@ ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "pete
 
 # Matched against uppercase title
 WANTED_VEHICLES = {
-    "TRANSIT CARGO", "TRANSIT CONNECT", "TRANSIT VAN",
-    "EXPRESS CARGO", "SAVANA CARGO", "ASTRO CARGO",
-    "SPRINTER",
+    "TRANSIT CONNECT",
     "NV CARGO", "NV200",
-    "RAM VAN", "PROMASTER", "PROMASTER CITY",
-    "METRIS",
-    "CARAVAN",
-    "RANGER",
 }
 
 # Kijiji search keywords → one search page each
 KIJIJI_SEARCHES = [
-    "transit-cargo", "transit-connect",
-    "sprinter", "promaster", "nv-cargo",
-    "caravan", "ranger",
+    "transit-connect",
+    "nv-cargo", "nv200",
 ]
 KIJIJI_BASE = "https://www.kijiji.ca"
 # Search within 150km of Collingwood, ON (44.5001, -80.2167)
@@ -177,6 +170,8 @@ def scrape_kijiji() -> list[dict]:
 
                 title = vehicle.get("name", "")
                 if not TEST_MODE and not is_wanted(title):
+                    continue
+                if "lease" in title.lower():
                     continue
 
                 # Location: embedded in URL path, e.g. /v-cars-trucks/barrie/...
