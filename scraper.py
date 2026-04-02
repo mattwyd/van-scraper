@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK_URL"]
 TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
 MAX_PRICE = 99_999 if TEST_MODE else 5_000
-MAX_KM    = 999_999 if TEST_MODE else 200_000
+MAX_KM    = 999_999 if TEST_MODE else 190_000
 
 ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "peterborough"}
 
