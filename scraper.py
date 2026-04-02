@@ -37,7 +37,13 @@ KIJIJI_SEARCHES = [
     "caravan", "ranger",
 ]
 KIJIJI_BASE = "https://www.kijiji.ca"
-KIJIJI_URL  = KIJIJI_BASE + "/b-cars-trucks/ontario/{kw}/k0c174l9004?price=__5000&sortingExpression=dateDesc"
+# Search within 150km of Collingwood, ON (44.5001, -80.2167)
+KIJIJI_URL  = (
+    KIJIJI_BASE
+    + "/b-cars-trucks/ontario/{kw}/k0c174l9004"
+    + "?radius=150.0&address=Collingwood%2C+Ontario&ll=44.5001%2C-80.2167"
+    + "&price=__5000&sortingExpression=dateDesc"
+)
 
 KENNY_URL  = "https://kennyautos.com/iframe-index.asp?lg=EN"
 KENNY_BASE = "https://kennyautos.com"
@@ -174,8 +180,7 @@ def scrape_kijiji() -> list[dict]:
                     continue
 
                 # Location: embedded in URL path, e.g. /v-cars-trucks/barrie/...
-                if not TEST_MODE and not location_ok(link):
-                    continue
+                # Location filtering handled by Kijiji's radius search
 
                 price_raw = None
                 offers = vehicle.get("offers", {})
