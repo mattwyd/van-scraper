@@ -16,6 +16,7 @@ TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
 MAX_PRICE = 99_999 if TEST_MODE else 7_500
 MAX_KM = 999_999 if TEST_MODE else 200_000
 LISTING_URL = "https://kennyautos.com/iframe-index.asp?lg=EN"
+ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "peterborough"}
 BASE_URL = "https://kennyautos.com"
 
 HEADERS = {
@@ -82,6 +83,9 @@ def scrape() -> list[dict]:
         link = (BASE_URL + a["href"]) if a and a["href"].startswith("/") else (a["href"] if a else "")
 
         # --- Filters ---
+        if not any(loc in location.lower() for loc in ALLOWED_LOCATIONS):
+            print(f"  Skip (location '{location}'): {title}")
+            continue
         if price is not None and price > MAX_PRICE:
             print(f"  Skip (${price:,} > ${MAX_PRICE:,}): {title}")
             continue
