@@ -57,21 +57,25 @@ def scrape() -> list[dict]:
             if "CARGO" not in title_upper and "VAN" not in title_upper:
                 continue
 
-        # --- Price: <strong> containing $ ---
+        # --- Price: <h5 class="recent_item_price"><b>$4,722</b> ---
         price: int | None = None
-        for strong in li.find_all("strong"):
-            text = strong.get_text(strip=True)
-            if "$" in text:
-                price = extract_number(text)
-                break
+        price_h5 = li.find("h5", class_="recent_item_price")
+        if price_h5:
+            b = price_h5.find("b")
+            if b:
+                price = extract_number(b.get_text(strip=True))
 
-        # --- KM: <strong> containing "km" ---
+        # --- KM: <h5 class="item_wear">185,034<span>km</span></h5> ---
         km: int | None = None
-        for strong in li.find_all("strong"):
-            text = strong.get_text(strip=True)
-            if "km" in text.lower():
-                km = extract_number(text)
-                break
+        km_h5 = li.find("h5", class_="item_wear")
+        if km_h5:
+            km_text = km_h5.get_text(strip=True).replace("km", "").strip()
+            km = extract_number(km_text)
+
+        # --- Location ---
+        seller = li.find(class_="itemRecent_seller_name")
+        city = li.find(class_="itemRecent_seller_city")
+        location = f"{seller.get_text(strip=True)}, {city.get_text(strip=True)}" if seller and city else ""
 
         # --- Link ---
         a = li.find("a", href=True)
@@ -90,6 +94,7 @@ def scrape() -> list[dict]:
             "title": title,
             "price": f"${price:,}" if price is not None else "N/A",
             "km": f"{km:,} km" if km is not None else "N/A",
+            "location": location,
             "link": link,
         })
 
@@ -115,6 +120,7 @@ def send_discord(listings: list[dict]) -> None:
                 "fields": [
                     {"name": "Price", "value": car["price"], "inline": True},
                     {"name": "KM", "value": car["km"], "inline": True},
+                    {"name": "Location", "value": car["location"] or "N/A", "inline": True},
                 ],
             })
         label = (
