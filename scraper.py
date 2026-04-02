@@ -169,7 +169,17 @@ def send_discord(listings: list[dict]) -> None:
 
 
 async def main() -> None:
-    listings = await scrape()
+    if os.environ.get("TEST_MODE"):
+        listings = [
+            {
+                "title": "2012 Ford Transit Connect Cargo Van",
+                "price": "$5,995",
+                "km": "187,432 km",
+                "link": "https://kennyupull.com/cars-for-sale/",
+            }
+        ]
+    else:
+        listings = await scrape()
     print(f"\nTotal matching listings: {len(listings)}")
     send_discord(listings)
 
