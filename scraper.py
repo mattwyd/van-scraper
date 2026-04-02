@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK_URL"]
 TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
-MAX_PRICE = 99_999 if TEST_MODE else 7_500
+MAX_PRICE = 99_999 if TEST_MODE else 5_000
 MAX_KM = 999_999 if TEST_MODE else 200_000
 LISTING_URL = "https://kennyautos.com/iframe-index.asp?lg=EN"
 ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "peterborough"}
@@ -27,6 +27,7 @@ WANTED_VEHICLES = {
     "NV CARGO", "NV200",
     "RAM VAN", "PROMASTER", "PROMASTER CITY",
     "METRIS",
+    "CARAVAN",
     # Trucks
     "RANGER",
 }
