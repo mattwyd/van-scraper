@@ -10,6 +10,23 @@ import os
 import re
 import httpx
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SEEN_FILE = os.path.join(os.path.dirname(__file__), "seen.json")
+
+
+def load_seen() -> set[str]:
+    if os.path.exists(SEEN_FILE):
+        with open(SEEN_FILE) as f:
+            return set(json.load(f))
+    return set()
+
+
+def save_seen(seen: set[str]) -> None:
+    with open(SEEN_FILE, "w") as f:
+        json.dump(sorted(seen), f, indent=2)
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK_URL"]
 TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
@@ -259,12 +276,20 @@ def send_discord(listings: list[dict]) -> None:
 def main() -> None:
     print(f"TEST_MODE={TEST_MODE}, MAX_PRICE={MAX_PRICE}, MAX_KM={MAX_KM}")
 
+    seen = set() if TEST_MODE else load_seen()
+
     kenny   = scrape_kenny()
     kijiji  = scrape_kijiji()
     all_listings = kenny + kijiji
 
-    print(f"\nKenny: {len(kenny)} | Kijiji: {len(kijiji)} | Total: {len(all_listings)}")
-    send_discord(all_listings)
+    new_listings = [l for l in all_listings if l["link"] not in seen]
+    print(f"\nKenny: {len(kenny)} | Kijiji: {len(kijiji)} | Total: {len(all_listings)} | New: {len(new_listings)}")
+
+    send_discord(new_listings)
+
+    if not TEST_MODE:
+        seen.update(l["link"] for l in all_listings)
+        save_seen(seen)
 
 
 if __name__ == "__main__":
