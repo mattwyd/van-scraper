@@ -7,6 +7,7 @@ Set TEST_MODE=true to disable filters and return the first 3 listings from each 
 """
 import json
 import os
+import random
 import re
 import httpx
 from bs4 import BeautifulSoup
@@ -234,11 +235,15 @@ def scrape_kijiji() -> list[dict]:
 
 COLORS = {"Kenny U-Pull": 0xDA291C, "Kijiji": 0x373373}
 
-def send_discord(listings: list[dict]) -> None:
+def send_discord(listings: list[dict], seen_count: int = 0) -> None:
     if not listings:
+        if not TEST_MODE and random.randint(1, 10) != 1:
+            print("No new listings — skipping Discord notification (1/10 chance).")
+            return
+        already_seen_note = f" ({seen_count} filtered as already seen)" if seen_count else ""
         payload = {
             "username": "Van Bot",
-            "content":  "No matching listings found right now. Will check again later.",
+            "content":  f"No matching listings found right now{already_seen_note}. Will check again later.",
         }
     else:
         embeds = []
@@ -283,9 +288,10 @@ def main() -> None:
     all_listings = kenny + kijiji
 
     new_listings = [l for l in all_listings if l["link"] not in seen]
-    print(f"\nKenny: {len(kenny)} | Kijiji: {len(kijiji)} | Total: {len(all_listings)} | New: {len(new_listings)}")
+    seen_count = len(all_listings) - len(new_listings)
+    print(f"\nKenny: {len(kenny)} | Kijiji: {len(kijiji)} | Total: {len(all_listings)} | New: {len(new_listings)} | Already seen: {seen_count}")
 
-    send_discord(new_listings)
+    send_discord(new_listings, seen_count=seen_count)
 
     if not TEST_MODE:
         seen.update(l["link"] for l in all_listings)
