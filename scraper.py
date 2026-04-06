@@ -40,12 +40,14 @@ ALLOWED_LOCATIONS = {"ajax", "pickering", "barrie", "london", "newmarket", "pete
 WANTED_VEHICLES = {
     "TRANSIT CONNECT",
     "NV CARGO", "NV200",
+    "CARAVAN",
 }
 
 # Kijiji search keywords → one search page each
 KIJIJI_SEARCHES = [
     "transit-connect",
     "nv-cargo", "nv200",
+    "dodge-caravan",
 ]
 KIJIJI_BASE = "https://www.kijiji.ca"
 # Search within 150km of Collingwood, ON (44.5001, -80.2167)
