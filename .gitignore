@@ -6,3 +6,7 @@ __pycache__/
 # runtime artifacts
 scraper.log
 *.bak
+
+# live runtime state — each machine keeps its own; tracking this is what
+# produced 47 bot commits of pure churn on master
+seen.json
